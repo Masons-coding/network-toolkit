@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Network Toolkit by Mason Clarke — IPv4 subnet calculator and VLSM planner, live DNS-over-HTTPS lookups, and an animated TCP handshake simulator." />
+    <meta name="theme-color" content="#020617" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://cloudflare-dns.com; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2300adff'/%3E%3Cg fill='%23020617'%3E%3Ccircle cx='16' cy='8' r='3.5'/%3E%3Ccircle cx='8' cy='23' r='3.5'/%3E%3Ccircle cx='24' cy='23' r='3.5'/%3E%3C/g%3E%3Cpath d='M16 8L8 23M16 8l8 15M8 23h16' stroke='%23020617' stroke-width='2'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles/theme.css" />
+    <link rel="stylesheet" href="styles/app.css" />
+    <title>Network Toolkit · Mason Clarke</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="topbar__brand" href="https://masons-resume-website.netlify.app/"><span class="topbar__logo">MC</span> Mason Clarke</a>
+      <nav class="topbar__links">
+        <a href="https://masons-resume-website.netlify.app/#projects">Portfolio</a>
+        <a href="https://github.com/Masons-coding/network-toolkit">Source</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="hero">
+        <p class="eyebrow">computer networking</p>
+        <h1>Network Toolkit</h1>
+        <p class="lead">
+          Three tools for how the internet actually moves data: carve up address space with the subnet calculator and VLSM
+          planner, resolve real domains over encrypted DNS, and step through a TCP connection segment by segment.
+        </p>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="Tools">
+        <button class="tab" role="tab" id="tab-subnet" aria-controls="panel-subnet" data-hash="subnet">Subnet calculator</button>
+        <button class="tab" role="tab" id="tab-dns" aria-controls="panel-dns" data-hash="dns">DNS lookup</button>
+        <button class="tab" role="tab" id="tab-tcp" aria-controls="panel-tcp" data-hash="tcp">TCP simulator</button>
+      </div>
+
+      <!-- ================= SUBNET ================= -->
+      <section id="panel-subnet" role="tabpanel" aria-labelledby="tab-subnet">
+        <div class="grid grid--2">
+          <div class="panel stack">
+            <h2>IPv4 subnet calculator</h2>
+            <div class="row">
+              <label class="field field--grow">Address / prefix (CIDR)
+                <input type="text" id="cidr" value="192.168.10.37/26" spellcheck="false" />
+              </label>
+              <label class="field prefix-field">Prefix <output id="prefix-out">/26</output>
+                <input type="range" id="prefix" min="0" max="32" value="26" />
+              </label>
+            </div>
+            <p class="error small" id="cidr-error" hidden></p>
+            <dl class="facts" id="facts"></dl>
+            <div class="binary" id="binary" aria-label="Binary breakdown"></div>
+            <p class="muted small"><span class="key key--net">network bits</span> <span class="key key--host">host bits</span></p>
+            <div class="range" aria-hidden="true">
+              <div class="range__bar"><div class="range__marker" id="range-marker"></div></div>
+              <div class="range__labels"><span id="range-lo"></span><span id="range-hi"></span></div>
+            </div>
+            <div class="row">
+              <label class="field field--grow">Is this IP inside the subnet?
+                <input type="text" id="member" value="192.168.10.70" spellcheck="false" />
+              </label>
+              <p class="member-result" id="member-result"></p>
+            </div>
+            <div>
+              <div class="row row--center">
+                <h3 class="grow">Split into smaller subnets</h3>
+                <select id="split" aria-label="Split prefix"></select>
+              </div>
+              <div class="table-wrap split-table"><table id="split-table"></table></div>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <h2>VLSM planner</h2>
+            <p class="muted small">Variable Length Subnet Masking: give each team exactly the block it needs. Biggest requests are placed first so every subnet stays aligned.</p>
+            <label class="field">Address block to divide
+              <input type="text" id="vlsm-base" value="10.20.0.0/22" spellcheck="false" />
+            </label>
+            <table class="vlsm-input">
+              <thead><tr><th>Subnet name</th><th>Hosts needed</th><th></th></tr></thead>
+              <tbody id="vlsm-rows"></tbody>
+            </table>
+            <div class="row">
+              <button class="btn btn--small" id="vlsm-add">+ Add subnet</button>
+              <button class="btn btn--primary" id="vlsm-run">Allocate</button>
+            </div>
+            <p class="error small" id="vlsm-error" hidden></p>
+            <div class="usage" id="vlsm-usage"></div>
+            <div class="table-wrap"><table id="vlsm-table"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= DNS ================= -->
+      <section id="panel-dns" role="tabpanel" aria-labelledby="tab-dns" hidden>
+        <div class="grid grid--sidebar">
+          <aside class="panel stack">
+            <h2>Query</h2>
+            <label class="field">Domain <input type="text" id="domain" value="github.com" spellcheck="false" /></label>
+            <label class="field">Record type
+              <select id="rtype">
+                <option>A</option><option>AAAA</option><option>MX</option><option>TXT</option><option>NS</option><option>CNAME</option><option>SOA</option><option>CAA</option><option>HTTPS</option>
+              </select>
+            </label>
+            <button class="btn btn--primary" id="dns-run">Resolve</button>
+            <button class="btn" id="dns-all">Look up every type</button>
+            <p class="muted small">Try:
+              <button class="linkish" data-domain="masons-resume-website.netlify.app">my portfolio</button> ·
+              <button class="linkish" data-domain="google.com" data-type="MX">google.com MX</button> ·
+              <button class="linkish" data-domain="www.github.com" data-type="CNAME">www.github.com CNAME</button> ·
+              <button class="linkish" data-domain="this-domain-does-not-exist-12345.com">NXDOMAIN</button>
+            </p>
+          </aside>
+          <div class="panel stack">
+            <div class="row row--center">
+              <h2 class="grow">Answer</h2>
+              <span id="dns-meta" class="muted small"></span>
+            </div>
+            <div id="dns-status"></div>
+            <div id="dns-results"></div>
+            <details class="learn">
+              <summary>What's happening</summary>
+              <ul>
+                <li>Your browser sends a <strong>DNS-over-HTTPS</strong> (RFC 8484) query to Cloudflare's 1.1.1.1 resolver. The lookup is encrypted inside TLS instead of travelling as plaintext UDP on port 53.</li>
+                <li>The recursive resolver walks the hierarchy for you: root servers → the TLD (<code>.com</code>) → the domain's authoritative nameservers. It then caches the answer for its <strong>TTL</strong>.</li>
+                <li><strong>A/AAAA</strong> map names to IPv4/IPv6, <strong>CNAME</strong> aliases one name to another, <strong>MX</strong> routes email, <strong>NS</strong> delegates authority, <strong>TXT</strong> carries SPF/DKIM and verification tokens, and <strong>CAA</strong> restricts which CAs may issue certificates.</li>
+                <li>"DNSSEC validated" means the resolver verified the answer's cryptographic signature chain.</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TCP ================= -->
+      <section id="panel-tcp" role="tabpanel" aria-labelledby="tab-tcp" hidden>
+        <div class="grid grid--sidebar">
+          <aside class="panel stack">
+            <h2>Connection</h2>
+            <div class="two">
+              <label class="field">Request bytes <input type="number" id="req" value="1200" min="0" max="20000" /></label>
+              <label class="field">Response bytes <input type="number" id="res" value="2500" min="0" max="20000" /></label>
+              <label class="field">MSS (bytes) <input type="number" id="mss" value="1000" min="100" max="9000" /></label>
+              <label class="field">Speed
+                <select id="tcp-speed"><option value="1100">Slow</option><option value="600" selected>Normal</option><option value="200">Fast</option></select>
+              </label>
+            </div>
+            <label class="check"><input type="checkbox" id="lose" /> Drop the 2nd data segment (packet loss)</label>
+            <div class="two">
+              <button class="btn btn--primary" id="tcp-play">▶ Play</button>
+              <button class="btn" id="tcp-step">Step</button>
+            </div>
+            <button class="btn btn--orange" id="tcp-reset">↺ New connection (random ISNs)</button>
+            <div class="stats" id="tcp-stats"></div>
+          </aside>
+          <div class="panel">
+            <div class="lanes">
+              <div class="lane-head"><b>Client</b><span class="state" id="client-state">CLOSED</span></div>
+              <div></div>
+              <div class="lane-head lane-head--right"><b>Server</b><span class="state" id="server-state">LISTEN</span></div>
+            </div>
+            <ol class="timeline" id="timeline" aria-live="polite"></ol>
+            <details class="learn">
+              <summary>What's happening</summary>
+              <ul>
+                <li><strong>Handshake:</strong> SYN → SYN-ACK → ACK synchronises each side's random initial sequence number (ISN). SYN and FIN each consume one sequence number.</li>
+                <li><strong>Reliable delivery:</strong> data is cut into MSS-sized segments. The receiver's <em>cumulative</em> ACK names the next byte it expects, and a missing ACK triggers retransmission of the same sequence range.</li>
+                <li><strong>Teardown:</strong> each direction closes separately (FIN/ACK twice). The side that closes first sits in TIME_WAIT for 2×MSL so delayed packets can't corrupt a future connection.</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      Built by <a href="https://masons-resume-website.netlify.app/">Mason Clarke</a> · Vanilla JavaScript · DNS via Cloudflare DoH ·
+      <a href="https://github.com/Masons-coding/network-toolkit">View source</a>
+    </footer>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

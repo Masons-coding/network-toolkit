@@ -1,0 +1,13 @@
+{
+  "name": "network-toolkit",
+  "version": "1.0.0",
+  "description": "Networking toolkit: IPv4 subnet calculator and VLSM planner, DNS-over-HTTPS lookups, and an animated TCP connection simulator.",
+  "type": "module",
+  "private": true,
+  "author": "Mason Clarke",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test",
+    "start": "npx --yes serve ."
+  }
+}
